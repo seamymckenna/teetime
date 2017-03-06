@@ -85,7 +85,7 @@ for group in fourballs.values():
           sleep(pollInterval)
 
       #assuming now live, get all timeslot id's. Discard those pre sunrise. Remember to match those only with 4 free slots
-      timeslotData = findall('(sunrise.*)',data.text,DOTALL)[0]
+      timeslotData = findall('(08:.*)',data.text,DOTALL)[0]
       timeslots = findall('<td></td>[\r\n]+<td></td>[\r\n]+<td></td>[\r\n]+<td></td>.*?unique_id.*?VALUE=.([0-9]*)',timeslotData,DOTALL)
       print timeslots
 
