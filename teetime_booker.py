@@ -5,6 +5,8 @@ import requests, datetime, yaml, os
 from sys import exit
 from re import findall, search, DOTALL, IGNORECASE
 from time import sleep
+import json
+
 
 #Player Ids
 #</option><option value="1437">McKenna,  Seamus (N)
@@ -42,20 +44,26 @@ fourballs={1:{'bookingPayload' : {'Player1_uid' : '1437',
                                   'unique_id' : None,
                                   'd_date' : bookingDate,
                                   'Booking_Operation' : None},
-             'loginPayload': {'GUILDNUMBER_VALIDATE':booking1_username,'PASSWORD_VALIDATE':booking1_password}},
+             'loginPayload': {'_username':booking1_username,'_password':booking1_password, "_csrf_token": ''}},
           2:{'bookingPayload' : {'Player1_uid' : '1434',
                                  'Player2_uid' : '1436',
                                  'course_id' : '1',
                                  'unique_id' : None,
                                  'd_date' : bookingDate,
                                  'Booking_Operation' : None},
-              'loginPayload': {'GUILDNUMBER_VALIDATE':booking2_username,'PASSWORD_VALIDATE':booking2_password}}}
+             'loginPayload': {'_username':booking2_username,'_password':booking2_password, "_csrf_token": ''}}}
+
+#fourballs={1:{'bookingPayload' : {'Player1_uid' : '1437',
+#                                  'course_id' : '1',
+#                                  'unique_id' : None,
+#                                  'd_date' : bookingDate,
+#                                  'Booking_Operation' : None},
+#             'loginPayload': {'_username':booking1_username,'_password':booking1_password, "_csrf_token": ''}}}
 
 #Define Uri's
-loginUri='https://www.brsgolf.com/killymoon/user_admin.php?stage=login'
+loginUri='https://www.brsgolf.com/killymoon/member/login_check'
 timeSlotsUri='https://www.brsgolf.com/killymoon/members_booking.php?operation=member_day&d_date={}&course_id1=1'.format(bookingDate)
 bookingUri='https://www.brsgolf.com/killymoon/members_booking.php?operation=member_process_booking'
-
 #Define polling interval
 pollInterval=30
 
@@ -64,19 +72,22 @@ for group in fourballs.values():
     try:
       #1) Login
       headers = {'User-Agent': 'Mozilla/5.0'}
-      session = requests.Session()
-      data=session.post(loginUri,data=group['loginPayload'])
+      session = requests.session()
+      result = session.get(loginUri)
+      #e.g _csrf_token" value="2360ba910dba76930ef8add5a07b84dbc15a820d">
+      token = search('_csrf_token. value=.([a-f0-9]*)', result.text).group(1)
+      group['loginPayload']['_csrf_token'] = token
+      data=session.post(loginUri,group['loginPayload'])
+      data = session.get(timeSlotsUri)
+
       #2) Get first available timeslot
       for i in range(2):
-        session = requests.Session()
-        session.post(loginUri,data=group['loginPayload'])
         data = session.get(timeSlotsUri)
         #if search('Not Live Yet',data.text):
         #  print '{}: sleeping...'.format(datetime.datetime.today())
         #  sleep(pollInterval)
         #else:
         #  break
-        print data.text
         if search('value=.Book Now',data.text,IGNORECASE):
           break
         else:
@@ -95,5 +106,5 @@ for group in fourballs.values():
         print '{}: {}'.format(datetime.datetime.today(),group['bookingPayload'])
         data = session.post(bookingUri,data=group['bookingPayload'])
         print '{}: {}: {}'.format(datetime.datetime.today(),bookingType,data)
-    except:
-      pass
+    except Exception as e:
+      print e
